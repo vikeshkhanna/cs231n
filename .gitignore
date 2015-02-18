@@ -1,0 +1,5 @@
+data/English
+data/cifar10
+
+*.DS_Store
+train/snapshots
