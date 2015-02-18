@@ -1,5 +1,6 @@
 data/English
 data/cifar10
+*lmdb*
 
 *.DS_Store
 train/snapshots
