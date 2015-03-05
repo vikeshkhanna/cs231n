@@ -3,3 +3,5 @@ data/cifar10
 *lmdb*
 *.DS_Store
 logs/
+*.swp
+data/LISTFILE*
