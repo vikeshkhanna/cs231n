@@ -1,6 +1,6 @@
-name: "Char74K"
+name: "mnist-char74k-detector"
 layers {
-  name: "char-74k"
+  name: "char74k"
   type: DATA
   top: "data"
   top: "label"
@@ -15,7 +15,7 @@ layers {
   include: { phase: TRAIN }
 }
 layers {
-  name: "char-74k"
+  name: "char74k"
   type: DATA
   top: "data"
   top: "label"
@@ -121,7 +121,7 @@ layers {
   blobs_lr: 1
   blobs_lr: 2
   inner_product_param {
-    num_output: 64
+    num_output: 2
     weight_filler {
       type: "xavier"
     }

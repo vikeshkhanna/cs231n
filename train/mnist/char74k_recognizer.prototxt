@@ -20,6 +20,6 @@ display: 100
 max_iter: 15000
 # snapshot intermediate results
 snapshot: 5000
-snapshot_prefix: "train/snapshots/"
+snapshot_prefix: "train/snapshots/recognizer"
 # solver mode: CPU or GPU
 solver_mode: CPU
