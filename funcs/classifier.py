@@ -24,10 +24,10 @@ class Classifier:
 
 class Recognizer(Classifier):
     # Recognizes a list of images
-  def recognize(self, np_images):
-    return self.classifier.predict(np_images)
+  def recognize(self, np_images, oversample=False):
+    return self.classifier.predict(np_images, oversample=oversample)
 
 class Detector(Classifier):
   # Recognizes a list of images
-  def detect(self, np_images):
-    return self.classifier.predict(np_images)
+  def detect(self, np_images, oversample=False):
+    return self.classifier.predict(np_images, oversample=oversample)
