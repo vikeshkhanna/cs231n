@@ -14,11 +14,12 @@ def extractTextBoxes(A):
 	# Extract info from image
 	H, W, C = A.shape
 	# Scales to work with: 24x24, 32x32, 40x40, 48x48
-	#scales = [24, 32, 40, 48]
-	scales = [18]
+	scales = [220]
+	#scales = [15,20]
+	#scl = 32
 	# Strides to make along the horizontal and vertical directions
-	stride = 2
-	thresh = 0.7 # To prune truly detected Char containing windows
+	stride = 4
+	thresh = 0.80 # To prune truly detected Char containing windows
 	out = collections.defaultdict(int) # Character Detection Scores
 	inxI = collections.defaultdict(int) # X of Current Sliding Window
 	inxJ = collections.defaultdict(int) # Y of Current Sliding Window
@@ -36,25 +37,28 @@ def extractTextBoxes(A):
 	DETECTOR_MODEL_FILE = os.path.join(os.path.join(TRAIN_ROOT, "mnist"), "char74k_detector_deploy.prototxt")
 	DETECTOR_PRETRAINED = os.path.join(SNAPSHOT_ROOT, "detector_iter_15000.caffemodel")
 
-	detector = classifier.Detector(RECOGNIZER_MODEL_FILE, RECOGNIZER_PRETRAINED)
-	recognizer = classifier.Recognizer(DETECTOR_MODEL_FILE, DETECTOR_PRETRAINED)
+	recognizer = classifier.Recognizer(RECOGNIZER_MODEL_FILE, RECOGNIZER_PRETRAINED)
+	detector = classifier.Detector(DETECTOR_MODEL_FILE, DETECTOR_PRETRAINED)
 	for scl in scales:
-		HH = scl
-		WW = scl
-		hInx = np.arange(H-HH+1)[0::stride] # Contains (h,w) indices of top-left pixel location
-		wInx = np.arange(W-WW+1)[0::stride]
+		#HH = scl
+		#WW = scl
+		#hInx = np.arange(H-HH+1)[0::stride] # Contains (h,w) indices of top-left pixel location
+		#wInx = np.arange(W-WW+1)[0::stride]
+		#resizedA = scipy.misc.imresize(A,imgScale,interp='bicubic')
 		patches = sklearn.feature_extraction.image.extract_patches(A, patch_shape=[scl,scl,C],extraction_step = stride)
-		patches = np.squeeze(patches)
-		hExtent,wExtent,_,_,_ = patches.shape
-		currOut = np.zeros((hExtent,wExtent))
-		inxCurrI = np.zeros((hExtent,wExtent))
-		inxCurrJ = np.zeros((hExtent,wExtent))
-		outX = (detector.detect(patches.reshape(hExtent*wExtent,scl,scl,C)))[:,1]
-		print outX.shape
+		#patches = np.squeeze(patches)
+		print patches.shape
+		hExtent,wExtent,_,_,_,_ = patches.shape
+		#currOut = np.zeros((hExtent,wExtent))
+		#inxCurrI = np.zeros((hExtent,wExtent))
+		#nxCurrJ = np.zeros((hExtent,wExtent))
+		#outX = (detector.detect(patches.reshape(hExtent*wExtent,scl,scl,C)))[:,1]
+		outX = np.amax(recognizer.recognize(patches.reshape(hExtent*wExtent,scl,scl,C)),axis=1)
 		currOut = outX.reshape(hExtent,wExtent)
-		print currOut.shape
 		out[scl] = currOut
 		print 'Done extracting scores for scale '+str(scl)
+		#print np.amax(currOut)
+		#print currOut
 
 		#for hPatch in np.arange(hExtent):
 		#	print 'Running detection for row '+str(hPatch)+'/'+str(hExtent)
@@ -120,7 +124,8 @@ def extractTextBoxes(A):
 
 	print 'Going to start pruning the bounding boxes now...'
 	print 'Num of boxes before pruning is '+str(bbIdx-1)
-	toBeRemoved = list() # List containing the dictionary indices of keys to be removed
+	toBeRemoved = set() # List containing the dictionary indices of keys to be removed
+	print boundingBoxes.keys()
 	for tpl1 in boundingBoxes.keys():
 		scl1, x11, x12, xArr1, y11, score1 = boundingBoxes[tpl1]
 		y12 = y11 + scl1
@@ -134,12 +139,14 @@ def extractTextBoxes(A):
 			xOverlap = np.amax((0, np.amin((x12,x22)) - np.amax((x11,x21)) ))
 			yOverlap = np.amax((0, np.amin((y12,y22)) - np.amax((y11,y21)) ))
 			intArea = xOverlap*yOverlap
-			if (float(intArea)/np.amin((area1,area2)) > 0.5):
+			if tpl1!=tpl2 and (float(intArea)/np.amin((area1,area2)) > 0.5):
 				if score1>score2:
-					toBeRemoved.append(tpl2)
+					toBeRemoved.add(tpl2)
 				else:
-					toBeRemoved.append(tpl1)
+					toBeRemoved.add(tpl1)
 
+	print 'Going to prune:'
+	print toBeRemoved
 	for inx in toBeRemoved:
 		boundingBoxes.pop(inx)
 
@@ -151,6 +158,7 @@ def extractTextBoxes(A):
 	predCount = 1
 	for inx in boundingBoxes.keys():
 		scl, xMin, xMax, xArr, y, score = boundingBoxes[inx]
+		print 'Scale of box '+str(predCount)+ ' is '+str(scl)
 		currText = list()
 		charNum = 0
 		for xPeak in xArr:
@@ -173,7 +181,7 @@ def extractTextBoxes(A):
 
 # Decide the scales of different sliding windows
 #imgFile = '../data/svt1/img/00_07.jpg'
-imgFile = '../../small_test.png'
+imgFile = "/Users/aditya/Downloads/word/word/1/10.jpg"
 A = caffe.io.load_image(imgFile)
 extractTextBoxes(A)
 
