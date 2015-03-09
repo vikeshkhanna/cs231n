@@ -3,7 +3,7 @@ import caffe
 
 def transform_label (caffe_label):
     if caffe_label >=0 and caffe_label <=9:
-        return caffe_label
+        return str(caffe_label)
     elif caffe_label >=10 and caffe_label <= 35:
         return chr(ord('A') + caffe_label - 10)
     elif caffe_label >=36 and caffe_label <= 61:
