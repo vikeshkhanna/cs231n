@@ -10,18 +10,20 @@ import scipy
 from scipy.ndimage import filters
 from sklearn.feature_extraction import image
 
-def extractTextBoxes(A):
+def extractTextBoxes(A,scales):
 	# Extract info from image
-	H, W, C = A.shape
+	#A = np.lib.pad(A, ((scale1/4,scale1/4), (scale2/4,scale2/4), (0,0)), 'edge')
+	#H, W, C = A.shape
 	# Scales to work with: 24x24, 32x32, 40x40, 48x48
-	#scales = [24, 32, 40, 48]
-	scales = [18]
+	#scales = [220]
+	#scales = [15,20]
+	#scl = 32
 	# Strides to make along the horizontal and vertical directions
-	stride = 2
+	stride = 4
 	thresh = 0.7 # To prune truly detected Char containing windows
 	out = collections.defaultdict(int) # Character Detection Scores
-	inxI = collections.defaultdict(int) # X of Current Sliding Window
-	inxJ = collections.defaultdict(int) # Y of Current Sliding Window
+	#inxI = collections.defaultdict(int) # X of Current Sliding Window
+	#inxJ = collections.defaultdict(int) # Y of Current Sliding Window
 	PROJECT_ROOT = "/Users/aditya/Desktop/quarter5/CS231N/project/text_det/cs231n/"
 	TRAIN_ROOT = os.path.join(PROJECT_ROOT, "train")
 	SNAPSHOT_ROOT = os.path.join(TRAIN_ROOT, "snapshots")
@@ -36,25 +38,29 @@ def extractTextBoxes(A):
 	DETECTOR_MODEL_FILE = os.path.join(os.path.join(TRAIN_ROOT, "mnist"), "char74k_detector_deploy.prototxt")
 	DETECTOR_PRETRAINED = os.path.join(SNAPSHOT_ROOT, "detector_iter_15000.caffemodel")
 
-	detector = classifier.Detector(RECOGNIZER_MODEL_FILE, RECOGNIZER_PRETRAINED)
-	recognizer = classifier.Recognizer(DETECTOR_MODEL_FILE, DETECTOR_PRETRAINED)
-	for scl in scales:
-		HH = scl
-		WW = scl
-		hInx = np.arange(H-HH+1)[0::stride] # Contains (h,w) indices of top-left pixel location
-		wInx = np.arange(W-WW+1)[0::stride]
-		patches = sklearn.feature_extraction.image.extract_patches(A, patch_shape=[scl,scl,C],extraction_step = stride)
-		patches = np.squeeze(patches)
-		hExtent,wExtent,_,_,_ = patches.shape
-		currOut = np.zeros((hExtent,wExtent))
-		inxCurrI = np.zeros((hExtent,wExtent))
-		inxCurrJ = np.zeros((hExtent,wExtent))
-		outX = (detector.detect(patches.reshape(hExtent*wExtent,scl,scl,C)))[:,1]
-		print outX.shape
+	recognizer = classifier.Recognizer(RECOGNIZER_MODEL_FILE, RECOGNIZER_PRETRAINED)
+	detector = classifier.Detector(DETECTOR_MODEL_FILE, DETECTOR_PRETRAINED)
+	for scl in xrange(len(scales)):
+		scale1, scale2 = scales[scl]
+		#A = np.lib.pad(A, ((scale1/4,scale1/4), (scale2/4,scale2/4), (0,0)), 'edge')
+		H, W, C = A.shape
+		#resizedA = scipy.misc.imresize(A,imgScale,interp='bicubic')
+		patches = sklearn.feature_extraction.image.extract_patches(A, patch_shape=[scale1,scale2,C],extraction_step = stride)
+		#patches = np.squeeze(patches)
+		print patches.shape
+		hExtent,wExtent,_,_,_,_ = patches.shape
+		#currOut = np.zeros((hExtent,wExtent))
+		#inxCurrI = np.zeros((hExtent,wExtent))
+		#nxCurrJ = np.zeros((hExtent,wExtent))
+		#outX = (detector.detect(patches.reshape(hExtent*wExtent,scl,scl,C)))[:,1]
+		outX = np.amax(recognizer.recognize(patches.reshape(hExtent*wExtent,scale1,scale2,C)),axis=1)
+		#outY = (detector.detect(patches.reshape(hExtent*wExtent,scl,scl,C))[:,1])
+		#outX = outX*outY
 		currOut = outX.reshape(hExtent,wExtent)
-		print currOut.shape
 		out[scl] = currOut
-		print 'Done extracting scores for scale '+str(scl)
+		print 'Done extracting scores for scale ('+str(scale1)+','+str(scale2)+')'
+		#print np.amax(currOut)
+		#print currOut
 
 		#for hPatch in np.arange(hExtent):
 		#	print 'Running detection for row '+str(hPatch)+'/'+str(hExtent)
@@ -74,7 +80,7 @@ def extractTextBoxes(A):
 	boundingBoxes = collections.defaultdict(int) # Dict of 5-tuples, scale, xmin, xmax, xarray, rowIdx, score
 	bbIdx = 1
 	print 'Will now start doing row-wise NMS with delta = '+str(delta)+' ...'
-	for scl in scales:
+	for scl in xrange(len(scales)):
 		scores = out[scl]
 		#yInx = inxI[scl]
 		#xInx = inxJ[scl]
@@ -116,30 +122,33 @@ def extractTextBoxes(A):
 
 		#supOut[scl] = suppressed
 		#nonZeroRows[scl] = nnzRows
-		print 'Done finding bounding boxes for scale '+str(scl)
+		print 'Done finding bounding boxes for scale '+str(scales[scl])
 
 	print 'Going to start pruning the bounding boxes now...'
 	print 'Num of boxes before pruning is '+str(bbIdx-1)
-	toBeRemoved = list() # List containing the dictionary indices of keys to be removed
+	toBeRemoved = set() # List containing the dictionary indices of keys to be removed
+	print boundingBoxes.keys()
 	for tpl1 in boundingBoxes.keys():
 		scl1, x11, x12, xArr1, y11, score1 = boundingBoxes[tpl1]
-		y12 = y11 + scl1
-		x12 = x12 + scl1
+		y12 = y11 + scales[scl1][0]
+		x12 = x12 + scales[scl1][1]
 		area1 = np.abs((x12-x11)*(y11-y12))
 		for tpl2 in boundingBoxes.keys():
 			scl2, x21, x22, xArr2, y21, score2 = boundingBoxes[tpl2]
-			y22 = y21 + scl2
-			x22 = x22 + scl2
+			y22 = y21 + scales[scl2][0]
+			x22 = x22 + scales[scl2][1]
 			area2 = np.abs((x22-x21)*(y22-y21))
 			xOverlap = np.amax((0, np.amin((x12,x22)) - np.amax((x11,x21)) ))
 			yOverlap = np.amax((0, np.amin((y12,y22)) - np.amax((y11,y21)) ))
 			intArea = xOverlap*yOverlap
-			if (float(intArea)/np.amin((area1,area2)) > 0.5):
+			if tpl1!=tpl2 and (float(intArea)/np.amin((area1,area2)) > 0.5):
 				if score1>score2:
-					toBeRemoved.append(tpl2)
+					toBeRemoved.add(tpl2)
 				else:
-					toBeRemoved.append(tpl1)
+					toBeRemoved.add(tpl1)
 
+	print 'Going to prune:'
+	print toBeRemoved
 	for inx in toBeRemoved:
 		boundingBoxes.pop(inx)
 
@@ -147,14 +156,58 @@ def extractTextBoxes(A):
 	# Find the text corresponding to the surviving bounding boxes
 	#numToChar = collections.defaultdict(int) # Dictionary mapping class numbers to labels
 	print 'Pruning bounding boxes completed. Will now run recognizer on the bounding boxes...'
+	print 'Remaining boxes:'+str(boundingBoxes.keys())
+	# Going to remove repeated matches for the same letter
+	for inx in boundingBoxes.keys():
+		scl, xMin, xMax, xArr, y, score = boundingBoxes[inx]
+		scale1, scale2 = scales[scl]
+		prevXIdx = -1000
+		currScores = out[scl]
+		numDistinctLetters = 0
+		firstPeak = 1
+		xNewArr = list()
+		print 'Current array being processed: '+str(xArr)
+		for xPeak in xArr:
+			if np.abs(xPeak - prevXIdx) <= scale2/2 and firstPeak==0:
+				currIdxs.append(xPeak)
+				xScore = out[y,xPeak]
+				currScores.append(xScore)
+			if np.abs(xPeak - prevXIdx) > scale2/2 and firstPeak==0:
+				peakToRetain = np.asarray(currIdxs)[np.argmax(np.asarray(currScores))]
+				xNewArr.append(peakToRetain)
+				currIdxs = list()
+				currScores = list()
+				currIdxs.append(xPeak)
+				currScores.append(out[y,xPeak])
+			if firstPeak==1:
+				currIdxs = list()
+				currScores = list()
+				currIdxs.append(xPeak)
+				currScores.append(out[y,xPeak])
+				firstPeak = 0
+			if xPeak==xArr[-1]:
+				peakToRetain = np.asarray(currIdxs)[np.argmax(np.asarray(currScores))]
+				xNewArr.append(peakToRetain)
+			print 'Finished processing '+str(xPeak)
+			prevXIdx = xPeak
+		boundingBoxes[inx] = scl, xNewArr, y, score
+
+
 	predictions = collections.defaultdict(int)
 	predCount = 1
 	for inx in boundingBoxes.keys():
-		scl, xMin, xMax, xArr, y, score = boundingBoxes[inx]
+		scl, xArr, y, score = boundingBoxes[inx]
+		#xMin = np.amin(xArr)
+		#xMax = np.amax(xArr)
+		print 'Scale of box '+str(predCount)+ ' is '+str(scales[scl])
 		currText = list()
 		charNum = 0
+		#xPrunedArr = list()
+		#for i in xArr.shape[0]:
+		#	if (i-1)>=0 and np.abs(xArr[i-1]-xArr[i])
+
 		for xPeak in xArr:
-			currPatch = A[y:y+scl, xPeak:xPeak+scl]
+			currPatch = A[y:y+scales[scl][0], xPeak:xPeak+scales[scl][1]]
 			preds = (recognizer.recognize([currPatch])[0])
 			label = classifier.transform_label(np.argmax(preds))
 			currText.append(label)
@@ -162,6 +215,8 @@ def extractTextBoxes(A):
 		predictions[inx] = ''.join(currText)
 		predCount += 1
 
+	print 'The array of x indices with a char is:'
+	print xArr
 	predCount = 0
 	for inx in predictions.keys():
 		print 'bounding box '+str(predCount)+' :'
@@ -173,9 +228,10 @@ def extractTextBoxes(A):
 
 # Decide the scales of different sliding windows
 #imgFile = '../data/svt1/img/00_07.jpg'
-imgFile = '../../small_test.png'
+imgFile = "/Users/aditya/Downloads/word/word/1/10.jpg"
 A = caffe.io.load_image(imgFile)
-extractTextBoxes(A)
+scales = [(220,220)]
+extractTextBoxes(A,scales)
 
 # Function to be called: giveMeScore(A)
 # Function to be called: giveMeChar(A)
