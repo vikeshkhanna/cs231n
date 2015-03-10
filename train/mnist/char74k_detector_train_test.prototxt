@@ -22,7 +22,7 @@ layers {
   data_param {
     source: "data/detector/char74k_lmdb_test"
     backend: LMDB
-    batch_size: 100
+    batch_size: 64
   }
   transform_param {
     scale: 0.00390625

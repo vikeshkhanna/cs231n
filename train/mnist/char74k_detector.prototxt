@@ -17,7 +17,10 @@ power: 0.75
 # Display every 100 iterations
 display: 100
 # The maximum number of iterations
-max_iter: 15000
+# Batch size = 64, Training size ~ 147,000
+# 1 Epoch = 2296 iterations
+# 40,000 iterations = 16 epochs
+max_iter: 40000
 # snapshot intermediate results
 snapshot: 5000
 snapshot_prefix: "train/snapshots/detector"

@@ -1,9 +1,9 @@
 name: "LeNet"
 input: "data"
-input_dim: 64
+input_dim: 1000
 input_dim: 3
-input_dim: 64
-input_dim: 64
+input_dim: 32
+input_dim: 32
 layers {
   name: "conv1"
   type: CONVOLUTION
